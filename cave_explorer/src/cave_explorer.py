@@ -53,6 +53,7 @@ class PlannerType(Enum):
     GO_TO_FIRST_ARTIFACT = 3
     RANDOM_WALK = 4
     RANDOM_GOAL = 5
+    INTERSECTION_EXPLORE = 6
     # Add more!
 
 class CaveExplorer:
@@ -293,6 +294,24 @@ class CaveExplorer:
             rospy.loginfo('Sending goal...')
             self.move_base_action_client_.send_goal(action_goal.goal)
 
+    def intersection_explore(self, actionstate):
+        
+        #The idea:
+        #Traverse until reaching an intersection, which will be marked as a 'node'
+        #Turn right, then continue until the next intersection.
+        #If a previous intersection or a dead end, find an unvisited direction and go that way
+        #Once no more unvisited directions the map should be complete.
+        
+        #Important parameters will be node placement tolerance, detection, and navigation
+        #Also important to keep track of nodes and their branches.
+        
+        
+        if actionstate != actionlib.GoalStatus.ACTIVE:
+            #if not already going to goal -> launch into our intersection sweep
+            pass
+        
+
+
     def main_loop(self):
 
         while not rospy.is_shutdown():
@@ -323,7 +342,7 @@ class CaveExplorer:
             elif not self.returned_home_:
                 self.planner_type_ = PlannerType.RETURN_HOME
             else:
-                self.planner_type_ = PlannerType.RANDOM_GOAL
+                self.planner_type_ = PlannerType.INTERSECTION_EXPLORE
 
 
             #######################################################
@@ -341,6 +360,8 @@ class CaveExplorer:
                 self.planner_random_walk(action_state)
             elif self.planner_type_ == PlannerType.RANDOM_GOAL:
                 self.planner_random_goal(action_state)
+            elif self.planner_type_ == PlannerType.INTERSECTION_EXPLORE:
+                self.intersection_explore(action_state)
 
 
             #######################################################

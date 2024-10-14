@@ -1,0 +1,8 @@
+#1st
+roslaunch cave_explorer cave_explorer_startup.launch
+
+#2nd
+roslaunch cave_explorer cave_explorer_navigation.launch
+
+#3rd
+roslaunch cave_explorer cave_explorer_autonomy.launch

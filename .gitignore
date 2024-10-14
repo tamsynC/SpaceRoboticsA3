@@ -1,2 +1,5 @@
 #ignore opencv version 3.4.16
 opencv
+
+#ignore the negative and positive images
+neg

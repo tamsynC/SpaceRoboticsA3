@@ -15,7 +15,7 @@ bridge = CvBridge()
 
 def image_callback(msg):
     global pic_num
-    print("Received an image!")
+    # print("Received an image!")
     try:
         # Convert your ROS Image message to OpenCV2
         cv2_img = bridge.imgmsg_to_cv2(msg, "bgr8")
@@ -28,6 +28,7 @@ def image_callback(msg):
         if pic_num % save_interval == 0:
             # Save your OpenCV2 image as a jpeg
             cv2.imwrite("neg/" + str(pic_num) + ".png", cv2_img)
+            print("saved " + str(pic_num))
 
 def main():
     rospy.init_node('image_listener')

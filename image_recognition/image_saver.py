@@ -7,7 +7,7 @@ from cv_bridge import CvBridge, CvBridgeError
 # OpenCV2 for saving an image
 import cv2
 
-save_interval = 10
+save_interval = 2
 pic_num = 0
 
 # Instantiate CvBridge

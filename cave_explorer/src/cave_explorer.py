@@ -21,7 +21,7 @@ import random
 import copy
 from threading import Lock
 from enum import Enum
-
+from exploration_management import Node, NodeExplore
 
 
 def wrap_angle(angle):
@@ -71,6 +71,9 @@ class CaveExplorer:
 
         # Initialise CvBridge
         self.cv_bridge_ = CvBridge()
+
+        # Initialise NodeManagement
+        self.nodes = NodeExplore()
 
         # Wait for the transform to become available
         rospy.loginfo("Waiting for transform from map to base_link")
@@ -308,7 +311,34 @@ class CaveExplorer:
         
         if actionstate != actionlib.GoalStatus.ACTIVE:
             #if not already going to goal -> launch into our intersection sweep
-            pass
+            self.nodes.createNodes(laserscan)
+            
+            closestNode = Node()
+            closestDist = 9999999
+            for node in self.nodes.Unvisisted:
+                #find the closest unvisited node and travel to it
+                robotPose = self.get_pose_2d()
+                dist = math.sqrt(pow(robotPose.x - node.x, 2) + pow(robotPose.y - node.y, 2))
+                if dist < closestDist:
+                    closestNode = node
+                    closestDist = dist
+            
+            #Move node to visited set
+            self.nodes.Visited.append(closestNode)
+            self.nodes.Unvisisted.remove(closestNode)
+            
+            #Turn node into pose then into a goal
+            nodePose = self.nodes.NodeToPose(closestNode)
+            
+            goal = MoveBaseActionGoal()
+            goal.goal.target_pose.header.frame_id = "map"
+            goal.goal_id = self.goal_counter_
+            self.goal_counter_ = self.goal_counter_ + 1
+            goal.goal.target_pose.pose = pose2d_to_pose(nodePose)
+            
+            #send goal to robot
+            self.move_base_action_client_.send_goal(goal)
+                
         
 
 
@@ -342,7 +372,7 @@ class CaveExplorer:
             elif not self.returned_home_:
                 self.planner_type_ = PlannerType.RETURN_HOME
             else:
-                self.planner_type_ = PlannerType.INTERSECTION_EXPLORE
+                self.planner_type_ = PlannerType.RANDOM_GOAL
 
 
             #######################################################

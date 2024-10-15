@@ -22,6 +22,8 @@ import copy
 from threading import Lock
 from enum import Enum
 from exploration_management import Node, NodeExplore
+from sensor_msgs.msg import LaserScan
+
 
 
 def wrap_angle(angle):
@@ -74,6 +76,10 @@ class CaveExplorer:
 
         # Initialise NodeManagement
         self.nodes = NodeExplore()
+        
+        #Initialise Laserscan saving + subscriber
+        self.laserSub = rospy.Subscriber('scan', LaserScan, self.LaserCallback, queue_size=10)
+        self.laserData = LaserScan()
 
         # Wait for the transform to become available
         rospy.loginfo("Waiting for transform from map to base_link")
@@ -124,6 +130,9 @@ class CaveExplorer:
         print("pose: ", pose)
 
         return pose
+
+    def LaserCallback(self, laserdata):
+        self.laserData = laserdata
 
 
     def image_callback(self, image_msg):
@@ -311,7 +320,7 @@ class CaveExplorer:
         
         if actionstate != actionlib.GoalStatus.ACTIVE:
             #if not already going to goal -> launch into our intersection sweep
-            self.nodes.createNodes(laserscan)
+            self.nodes.CreateNodes(self.laserData)
             
             closestNode = Node()
             closestDist = 9999999

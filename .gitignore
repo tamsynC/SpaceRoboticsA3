@@ -3,6 +3,7 @@ opencv
 
 #ignore the negative and positive images
 neg
+pos_sphere
 
 #ignore empty worlds
 cave_explorer_empty.launch

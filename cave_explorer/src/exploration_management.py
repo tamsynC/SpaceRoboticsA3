@@ -42,7 +42,7 @@ class NodeExplore:
         return pose_2d
     
     #Condense this for efficiency later
-    def CreateNodes(self, laserdata):
+    def CreateNodes(self, laserdata, odom):
         #Take in laser data between goals -> generate new nodes that arent within "exclusivity radius" of another node and add them to the unvisited set
         
         angleCount = 0
@@ -52,14 +52,15 @@ class NodeExplore:
                 range = laserdata.range_max - 5
                 
                 currTheta = laserdata.angle_min + (laserdata.angle_increment * angleCount)
-                currX = range * math.cos(currTheta)
-                currY = range * math.sin(currTheta)
+                currX = range * math.cos(currTheta) + odom.x
+                currY = range * math.sin(currTheta) + odom.y
                 
                 currPoint = Node(currX, currY, currTheta)
                 
                 if not self.isOccupied(currPoint):
                     self.AllNodes.append(currPoint)
                     self.Unvisisted.append(currPoint)
+                    print("Made node at: ", currPoint.x, currPoint.y)
             
             #threshold range is the minimum range to create a node to, prevents nodes that don't make meaningful exploration progress
             elif range < self.thresholdRange:
@@ -73,6 +74,7 @@ class NodeExplore:
                 if not self.isOccupied(currPoint):
                     self.AllNodes.append(currPoint)
                     self.Unvisisted.append(currPoint)
+                    print("Made node at: ", currPoint.x, currPoint.y)
             
             angleCount += 1       
 

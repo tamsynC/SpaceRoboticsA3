@@ -320,7 +320,7 @@ class CaveExplorer:
         
         if actionstate != actionlib.GoalStatus.ACTIVE:
             #if not already going to goal -> launch into our intersection sweep
-            self.nodes.CreateNodes(self.laserData)
+            self.nodes.CreateNodes(self.laserData, self.get_pose_2d())
             
             closestNode = Node()
             closestDist = 9999999
@@ -376,12 +376,7 @@ class CaveExplorer:
             # Select the next planner to execute
             # Update this logic as you see fit!
             # self.planner_type_ = PlannerType.MOVE_FORWARDS
-            if not self.reached_first_artifact_:
-                self.planner_type_ = PlannerType.GO_TO_FIRST_ARTIFACT
-            elif not self.returned_home_:
-                self.planner_type_ = PlannerType.RETURN_HOME
-            else:
-                self.planner_type_ = PlannerType.RANDOM_GOAL
+            self.planner_type_ = PlannerType.INTERSECTION_EXPLORE
 
 
             #######################################################

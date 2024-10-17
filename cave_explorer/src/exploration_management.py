@@ -30,8 +30,8 @@ class NodeExplore:
         self.Unvisisted = []
         self.AllNodes = []
         
-        self.thresholdRange = 5 #adjust as needed
-        self.exclusivityRadius = 5 #adjust as needed
+        self.thresholdRange = 3 #adjust as needed
+        self.exclusivityRadius = 4 #adjust as needed
         
     def NodeToPose(self, node):
         pose_2d = Pose2D()
@@ -48,26 +48,30 @@ class NodeExplore:
         angleCount = 0
         for range in laserdata.ranges:
             #infinite is good -> means no collisions
+            #print(range)
             if range == np.inf:
-                range = laserdata.range_max - 5
-                
-                currTheta = laserdata.angle_min + (laserdata.angle_increment * angleCount)
-                currX = range * math.cos(currTheta) + odom.x
-                currY = range * math.sin(currTheta) + odom.y
-                
-                currPoint = Node(currX, currY, currTheta)
-                
-                if not self.isOccupied(currPoint):
-                    self.AllNodes.append(currPoint)
-                    self.Unvisisted.append(currPoint)
-                    print("Made node at: ", currPoint.x, currPoint.y)
+                pass
+                #range = 5 #too big and we get unintended goals, too small and we just shouldn't consider them
+                #
+                #currTheta = laserdata.angle_min + (laserdata.angle_increment * angleCount)
+                #currX = range * math.cos(currTheta) + odom.x
+                #currY = range * math.sin(currTheta) + odom.y
+                #
+                #currPoint = Node(currX, currY, currTheta)
+                #
+                #if not self.isOccupied(currPoint):
+                #    self.AllNodes.append(currPoint)
+                #    self.Unvisisted.append(currPoint)
+                #    print("Made node at: ", currPoint.x, currPoint.y)
             
             #threshold range is the minimum range to create a node to, prevents nodes that don't make meaningful exploration progress
             elif range < self.thresholdRange:
                 
+                range = range -0.5 #keep it from crashing
+                
                 currTheta = laserdata.angle_min + (laserdata.angle_increment * angleCount)
-                currX = range * math.cos(currTheta)
-                currY = range * math.sin(currTheta)
+                currX = range * math.cos(currTheta) + odom.x
+                currY = range * math.sin(currTheta) + odom.y
                 
                 currPoint = Node(currX, currY, currTheta)
                 
@@ -81,21 +85,17 @@ class NodeExplore:
     def isOccupied(self, Point):
         #Starts false, if a node is detected in range flag true that the space is "occupied"
         #Notably using absolute distances, does not account for Line of Sight, adjust exclusivity radius as needed for best results.
-        withinRange = False
         for node in self.AllNodes:
             distBetween = math.sqrt(pow(node.x - Point.x, 2) + pow(node.y - Point.y, 2))
+            #print("Dist between: ", distBetween)
             if distBetween < self.exclusivityRadius:
-                withinRange = True
-        return withinRange     
+                return True
+        return False    
 
 class Node:
     
-    def __init__(self):
-        self.x = 0
-        self.y = 0
-        self.theta = 0
-    
-    def __init__(self, x, y, theta):
+
+    def __init__(self, x=0, y=0, theta=0):
         self.x = x
         self.y = y
         self.theta = theta

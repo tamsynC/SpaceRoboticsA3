@@ -2,7 +2,7 @@ import cv2
 from matplotlib import pyplot as plt
   
 # Opening image
-img = cv2.imread("Sphere2.png")
+img = cv2.imread("neg/27598.png")
   
 # OpenCV opens images as BRG 
 # but we want it as RGB We'll 
@@ -14,7 +14,7 @@ img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 # Use minSize because for not 
 # bothering with extra-small 
 # dots that would look like STOP signs
-sphere_data = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+sphere_data = cv2.CascadeClassifier('data_sphere/cascade.xml')
   
 found = sphere_data.detectMultiScale(img_gray, 
                                    minSize =(20, 20))

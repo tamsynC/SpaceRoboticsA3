@@ -24,13 +24,15 @@ from sensor_msgs.msg import LaserScan
 
 #Including imports just in case
 
+#Currently: needs to not just explore furthest node, but instead search "new" areas
+
 class NodeExplore:
     def __init__(self):
         self.Visited = []
         self.Unvisisted = []
         self.AllNodes = []
         
-        self.thresholdRange = 3 #adjust as needed
+        self.thresholdRange = 4 #adjust as needed
         self.exclusivityRadius = 4 #adjust as needed
         
     def NodeToPose(self, node):
@@ -44,11 +46,11 @@ class NodeExplore:
     #Condense this for efficiency later
     def CreateNodes(self, laserdata, odom):
         #Take in laser data between goals -> generate new nodes that arent within "exclusivity radius" of another node and add them to the unvisited set
-        
+        print("Odom values: ", odom.x, odom.y)
         angleCount = 0
         for range in laserdata.ranges:
             #infinite is good -> means no collisions
-            #print(range)
+            print(range)
             if range == np.inf:
                 pass
                 #range = 5 #too big and we get unintended goals, too small and we just shouldn't consider them
@@ -65,11 +67,31 @@ class NodeExplore:
                 #    print("Made node at: ", currPoint.x, currPoint.y)
             
             #threshold range is the minimum range to create a node to, prevents nodes that don't make meaningful exploration progress
-            elif range < self.thresholdRange:
+            elif range > self.thresholdRange:
                 
-                range = range -0.5 #keep it from crashing
+                range = range - 1.5 #keep it from crashing
                 
-                currTheta = laserdata.angle_min + (laserdata.angle_increment * angleCount)
+                currTheta = laserdata.angle_min + (laserdata.angle_increment * angleCount) + odom.theta
+                wrappedTheta = currTheta
+                outOfRange = False
+                Over = True
+                
+                if wrappedTheta > 2 * math.pi:
+                    outOfRange = True
+                elif  wrappedTheta < -2 * math.pi:
+                    outOfRange = True
+                    Over = False
+                
+                while outOfRange:
+                    
+                    if Over == True:
+                        wrappedTheta -= 2 * math.pi
+                    else:
+                        wrappedTheta += 2 * math.pi
+                    
+                    if -2 * math.pi <= wrappedTheta and wrappedTheta <= 2 * math.pi:
+                        outOfRange = False
+                
                 currX = range * math.cos(currTheta) + odom.x
                 currY = range * math.sin(currTheta) + odom.y
                 

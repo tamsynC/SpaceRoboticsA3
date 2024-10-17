@@ -176,8 +176,8 @@ class CaveExplorer:
         image_detection_message = self.cv_bridge_.cv2_to_imgmsg(image, encoding="rgb8")
         self.image_detections_pub_.publish(image_detection_message)
 
-        #rospy.loginfo('image_callback')
-        #rospy.loginfo('artifact_found_: ' + str(self.artifact_found_))
+        rospy.loginfo('image_callback')
+        rospy.loginfo('artifact_found_: ' + str(self.artifact_found_))
 
 
     def planner_move_forwards(self, action_state):
@@ -321,37 +321,35 @@ class CaveExplorer:
         if actionstate != actionlib.GoalStatus.ACTIVE:
             #if not already going to goal -> launch into our intersection sweep
             self.nodes.CreateNodes(self.laserData, self.get_pose_2d())
-            
-            closestNode = Node()
-            closestDist = 9999999
+            #print("Length of unvisited set and all nodes: ", self.nodes.Unvisisted, self.nodes.AllNodes)
+            furthestNode = Node()
+            furthestDist = 0
             
             for node in self.nodes.Unvisisted:
-                #find the closest unvisited node and travel to it
+                #find the furthest unvisited node from "0,0" and travel to it
                 robotPose = self.get_pose_2d()
-                dist = math.sqrt(pow(robotPose.x - node.x, 2) + pow(robotPose.y - node.y, 2))
-                if dist < closestDist:
-                    closestNode = node
-                    closestDist = dist
+                dist = math.sqrt(pow(node.x, 2) + pow(node.y, 2))
+                print("distance to goal: ", dist)
+                if dist > furthestDist:
+                    furthestNode = node
+                    furthestDist = dist
             
             #Move node to visited set
-            if closestNode in self.nodes.Unvisisted:
-                self.nodes.Visited.append(closestNode)
-                self.nodes.Unvisisted.remove(closestNode)
+            if furthestNode in self.nodes.Unvisisted:
+                self.nodes.Visited.append(furthestNode)
+                self.nodes.Unvisisted.remove(furthestNode)
     
                 #Turn node into pose then into a goal
-                nodePose = self.nodes.NodeToPose(closestNode)
-                
-                goal = MoveBaseActionGoal()
-                goal.goal.target_pose.header.frame_id = "map"
-                goal.goal_id = self.goal_counter_
-                self.goal_counter_ = self.goal_counter_ + 1
-                goal.goal.target_pose.pose = pose2d_to_pose(nodePose)
-                
-                #send goal to robot
-                self.move_base_action_client_.send_goal(goal.goal)
-            else:
-                print("closest not in unvisited set, is it populated?")
-                self.nodes.CreateNodes(self.laserData, self.get_pose_2d()) 
+            nodePose = self.nodes.NodeToPose(furthestNode)
+            
+            goal = MoveBaseActionGoal()
+            goal.goal.target_pose.header.frame_id = "map"
+            goal.goal_id = self.goal_counter_
+            self.goal_counter_ = self.goal_counter_ + 1
+            goal.goal.target_pose.pose = pose2d_to_pose(nodePose)
+            
+            #send goal to robot
+            self.move_base_action_client_.send_goal(goal.goal) 
         
 
 
@@ -363,8 +361,8 @@ class CaveExplorer:
             # Get the current status
             # See the possible statuses here: https://docs.ros.org/en/noetic/api/actionlib_msgs/html/msg/GoalStatus.html
             action_state = self.move_base_action_client_.get_state()
-            #rospy.loginfo('action state: ' + self.move_base_action_client_.get_goal_status_text())
-            #rospy.loginfo('action_state number:' + str(action_state))
+            rospy.loginfo('action state: ' + self.move_base_action_client_.get_goal_status_text())
+            rospy.loginfo('action_state number:' + str(action_state))
 
             #if (self.planner_type_ == PlannerType.GO_TO_FIRST_ARTIFACT) and (action_state == actionlib.GoalStatus.SUCCEEDED):
             #    print("Successfully reached first artifact!")
@@ -387,7 +385,7 @@ class CaveExplorer:
             # Execute the planner by calling the relevant method
             # The methods send a goal to "move_base" with "self.move_base_action_client_"
             # Add your own planners here!
-            #print("Calling planner:", self.planner_type_.name)
+            print("Calling planner:", self.planner_type_.name)
             if self.planner_type_ == PlannerType.MOVE_FORWARDS:
                 self.planner_move_forwards(action_state)
             elif self.planner_type_ == PlannerType.GO_TO_FIRST_ARTIFACT:

@@ -6,3 +6,5 @@ roslaunch cave_explorer cave_explorer_navigation.launch
 
 #3rd
 roslaunch cave_explorer cave_explorer_autonomy.launch
+
+~/SpaceRoboticsA3/image_recognition/opencv/build/x64/vc15/bin/opencv_traincascade.exe -data data -vec pos_sphere.vec -bg bg.txt -numPos 13000 -numNeg 7500 -numStages 10 -w 20 -h 20

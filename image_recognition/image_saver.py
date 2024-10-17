@@ -7,7 +7,7 @@ from cv_bridge import CvBridge, CvBridgeError
 # OpenCV2 for saving an image
 import cv2
 
-save_interval = 2
+save_interval = 25
 pic_num = 0
 
 # Instantiate CvBridge
@@ -27,7 +27,7 @@ def image_callback(msg):
 
         if pic_num % save_interval == 0:
             # Save your OpenCV2 image as a jpeg
-            cv2.imwrite("neg/" + str(pic_num) + ".png", cv2_img)
+            cv2.imwrite("neg_small/" + str(pic_num) + ".png", cv2_img)
             print("saved " + str(pic_num))
 
 def main():

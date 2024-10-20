@@ -6,6 +6,7 @@ neg
 pos_sphere
 pos_spherev2
 neg_small
+pictures
 
 #ignore empty worlds
 cave_explorer_empty.launch

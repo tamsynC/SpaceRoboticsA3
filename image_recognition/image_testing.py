@@ -14,7 +14,7 @@ img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 # Use minSize because for not 
 # bothering with extra-small 
 # dots that would look like STOP signs
-sphere_data = cv2.CascadeClassifier('data_sphere/cascade.xml')
+sphere_data = cv2.CascadeClassifier('data_spherev2/cascade.xml')
   
 found = sphere_data.detectMultiScale(img_gray, 
                                    minSize =(20, 20))

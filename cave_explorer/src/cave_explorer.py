@@ -327,7 +327,7 @@ class CaveExplorer:
                 self.FirstScan = False
             #print("Length of unvisited set and all nodes: ", self.nodes.Unvisisted, self.nodes.AllNodes)
             closestNode = Node()
-            closestDist = 0
+            closestDist = 999999
             
             for node in self.nodes.Unvisisted:
                 #find the furthest unvisited node from robotPos and travel to it

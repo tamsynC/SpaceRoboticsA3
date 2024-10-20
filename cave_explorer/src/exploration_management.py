@@ -32,8 +32,10 @@ class NodeExplore:
         self.Unvisisted = []
         self.AllNodes = []
         
-        self.thresholdRange = 4 #adjust as needed
-        self.exclusivityRadius = 4 #adjust as needed
+        self.thresholdRange = 6 #min distance for laserscan to care
+        self.exclusivityRadius = 8 #prevent other nodes from being within this range
+        
+        
         
     def NodeToPose(self, node):
         pose_2d = Pose2D()
@@ -44,13 +46,18 @@ class NodeExplore:
         return pose_2d
     
     #Condense this for efficiency later
-    def CreateNodes(self, laserdata, odom):
+    def CreateNodes(self, laserdata, odom, isFirstScan):
         #Take in laser data between goals -> generate new nodes that arent within "exclusivity radius" of another node and add them to the unvisited set
-        print("Odom values: ", odom.x, odom.y)
+        #print("Odom values: ", odom.x, odom.y)
+        
+        if isFirstScan:
+            InitialPoint = Node(odom.x, odom.y, odom.theta)
+            self.AllNodes.append(InitialPoint)
+        
         angleCount = 0
         for range in laserdata.ranges:
             #infinite is good -> means no collisions
-            print(range)
+            #print(range)
             if range == np.inf:
                 pass
                 #range = 5 #too big and we get unintended goals, too small and we just shouldn't consider them
@@ -69,7 +76,7 @@ class NodeExplore:
             #threshold range is the minimum range to create a node to, prevents nodes that don't make meaningful exploration progress
             elif range > self.thresholdRange:
                 
-                range = range - 1.5 #keep it from crashing
+                range = range - 3 #keep it from crashing
                 
                 currTheta = laserdata.angle_min + (laserdata.angle_increment * angleCount) + odom.theta
                 wrappedTheta = currTheta

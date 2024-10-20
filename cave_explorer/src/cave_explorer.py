@@ -42,7 +42,7 @@ def pose2d_to_pose(pose_2d):
     pose.position.x = pose_2d.x
     pose.position.y = pose_2d.y
 
-    pose.orientation.w = math.cos(pose_2d.theta)
+    pose.orientation.w = math.cos(pose_2d.theta / 2.0)
     pose.orientation.z = math.sin(pose_2d.theta / 2.0)
 
     return pose
@@ -76,6 +76,7 @@ class CaveExplorer:
 
         # Initialise NodeManagement
         self.nodes = NodeExplore()
+        self.FirstScan = True
         
         #Initialise Laserscan saving + subscriber
         self.laserSub = rospy.Subscriber('scan', LaserScan, self.LaserCallback, queue_size=10)
@@ -320,27 +321,30 @@ class CaveExplorer:
         
         if actionstate != actionlib.GoalStatus.ACTIVE:
             #if not already going to goal -> launch into our intersection sweep
-            self.nodes.CreateNodes(self.laserData, self.get_pose_2d())
+            self.nodes.CreateNodes(self.laserData, self.get_pose_2d(), self.FirstScan)
+            
+            if self.FirstScan == True:
+                self.FirstScan = False
             #print("Length of unvisited set and all nodes: ", self.nodes.Unvisisted, self.nodes.AllNodes)
-            furthestNode = Node()
-            furthestDist = 0
+            closestNode = Node()
+            closestDist = 0
             
             for node in self.nodes.Unvisisted:
-                #find the furthest unvisited node from "0,0" and travel to it
+                #find the furthest unvisited node from robotPos and travel to it
                 robotPose = self.get_pose_2d()
-                dist = math.sqrt(pow(node.x, 2) + pow(node.y, 2))
+                dist = math.sqrt(pow(robotPose.x - node.x, 2) + pow(robotPose.y - node.y, 2))
                 print("distance to goal: ", dist)
-                if dist > furthestDist:
-                    furthestNode = node
-                    furthestDist = dist
+                if dist < closestDist:
+                    closestNode = node
+                    closestDist = dist
             
             #Move node to visited set
-            if furthestNode in self.nodes.Unvisisted:
-                self.nodes.Visited.append(furthestNode)
-                self.nodes.Unvisisted.remove(furthestNode)
+            if closestNode in self.nodes.Unvisisted:
+                self.nodes.Visited.append(closestNode)
+                self.nodes.Unvisisted.remove(closestNode)
     
                 #Turn node into pose then into a goal
-            nodePose = self.nodes.NodeToPose(furthestNode)
+            nodePose = self.nodes.NodeToPose(closestNode)
             
             goal = MoveBaseActionGoal()
             goal.goal.target_pose.header.frame_id = "map"

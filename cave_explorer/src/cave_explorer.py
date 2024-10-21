@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import rospy
 import roslib
 import math
@@ -22,6 +21,8 @@ import random
 import copy
 from threading import Lock
 from enum import Enum
+from exploration_management import Node, NodeExplore
+from sensor_msgs.msg import LaserScan
 
 
 
@@ -41,7 +42,7 @@ def pose2d_to_pose(pose_2d):
     pose.position.x = pose_2d.x
     pose.position.y = pose_2d.y
 
-    pose.orientation.w = math.cos(pose_2d.theta)
+    pose.orientation.w = math.cos(pose_2d.theta / 2.0)
     pose.orientation.z = math.sin(pose_2d.theta / 2.0)
 
     return pose
@@ -54,6 +55,7 @@ class PlannerType(Enum):
     GO_TO_FIRST_ARTIFACT = 3
     RANDOM_WALK = 4
     RANDOM_GOAL = 5
+    INTERSECTION_EXPLORE = 6
     # Add more!
 
 class CaveExplorer:
@@ -71,6 +73,14 @@ class CaveExplorer:
 
         # Initialise CvBridge
         self.cv_bridge_ = CvBridge()
+
+        # Initialise NodeManagement
+        self.nodes = NodeExplore()
+        self.FirstScan = True
+        
+        #Initialise Laserscan saving + subscriber
+        self.laserSub = rospy.Subscriber('scan', LaserScan, self.LaserCallback, queue_size=10)
+        self.laserData = LaserScan()
 
         # Wait for the transform to become available
         rospy.loginfo("Waiting for transform from map to base_link")
@@ -121,6 +131,9 @@ class CaveExplorer:
         print("pose: ", pose)
 
         return pose
+
+    def LaserCallback(self, laserdata):
+        self.laserData = laserdata
 
 
     def image_callback(self, image_msg):
@@ -294,6 +307,56 @@ class CaveExplorer:
             rospy.loginfo('Sending goal...')
             self.move_base_action_client_.send_goal(action_goal.goal)
 
+    def intersection_explore(self, actionstate):
+        
+        #The idea:
+        #Traverse until reaching an intersection, which will be marked as a 'node'
+        #Turn right, then continue until the next intersection.
+        #If a previous intersection or a dead end, find an unvisited direction and go that way
+        #Once no more unvisited directions the map should be complete.
+        
+        #Important parameters will be node placement tolerance, detection, and navigation
+        #Also important to keep track of nodes and their branches.
+        
+        
+        if actionstate != actionlib.GoalStatus.ACTIVE:
+            #if not already going to goal -> launch into our intersection sweep
+            self.nodes.CreateNodes(self.laserData, self.get_pose_2d(), self.FirstScan)
+            
+            if self.FirstScan == True:
+                self.FirstScan = False
+            #print("Length of unvisited set and all nodes: ", self.nodes.Unvisisted, self.nodes.AllNodes)
+            closestNode = Node()
+            closestDist = 999999
+            
+            for node in self.nodes.Unvisisted:
+                #find the furthest unvisited node from robotPos and travel to it
+                robotPose = self.get_pose_2d()
+                dist = math.sqrt(pow(robotPose.x - node.x, 2) + pow(robotPose.y - node.y, 2))
+                print("distance to goal: ", dist)
+                if dist < closestDist:
+                    closestNode = node
+                    closestDist = dist
+            
+            #Move node to visited set
+            if closestNode in self.nodes.Unvisisted:
+                self.nodes.Visited.append(closestNode)
+                self.nodes.Unvisisted.remove(closestNode)
+    
+                #Turn node into pose then into a goal
+            nodePose = self.nodes.NodeToPose(closestNode)
+            
+            goal = MoveBaseActionGoal()
+            goal.goal.target_pose.header.frame_id = "map"
+            goal.goal_id = self.goal_counter_
+            self.goal_counter_ = self.goal_counter_ + 1
+            goal.goal.target_pose.pose = pose2d_to_pose(nodePose)
+            
+            #send goal to robot
+            self.move_base_action_client_.send_goal(goal.goal) 
+        
+
+
     def main_loop(self):
 
         while not rospy.is_shutdown():
@@ -305,12 +368,12 @@ class CaveExplorer:
             rospy.loginfo('action state: ' + self.move_base_action_client_.get_goal_status_text())
             rospy.loginfo('action_state number:' + str(action_state))
 
-            if (self.planner_type_ == PlannerType.GO_TO_FIRST_ARTIFACT) and (action_state == actionlib.GoalStatus.SUCCEEDED):
-                print("Successfully reached first artifact!")
-                self.reached_first_artifact_ = True
-            if (self.planner_type_ == PlannerType.RETURN_HOME) and (action_state == actionlib.GoalStatus.SUCCEEDED):
-                print("Successfully returned home!")
-                self.returned_home_ = True
+            #if (self.planner_type_ == PlannerType.GO_TO_FIRST_ARTIFACT) and (action_state == actionlib.GoalStatus.SUCCEEDED):
+            #    print("Successfully reached first artifact!")
+            #    self.reached_first_artifact_ = True
+            #if (self.planner_type_ == PlannerType.RETURN_HOME) and (action_state == actionlib.GoalStatus.SUCCEEDED):
+            #    print("Successfully returned home!")
+            #    self.returned_home_ = True
 
 
 
@@ -319,12 +382,7 @@ class CaveExplorer:
             # Select the next planner to execute
             # Update this logic as you see fit!
             # self.planner_type_ = PlannerType.MOVE_FORWARDS
-            if not self.reached_first_artifact_:
-                self.planner_type_ = PlannerType.GO_TO_FIRST_ARTIFACT
-            elif not self.returned_home_:
-                self.planner_type_ = PlannerType.RETURN_HOME
-            else:
-                self.planner_type_ = PlannerType.RANDOM_GOAL
+            self.planner_type_ = PlannerType.INTERSECTION_EXPLORE
 
 
             #######################################################
@@ -342,6 +400,8 @@ class CaveExplorer:
                 self.planner_random_walk(action_state)
             elif self.planner_type_ == PlannerType.RANDOM_GOAL:
                 self.planner_random_goal(action_state)
+            elif self.planner_type_ == PlannerType.INTERSECTION_EXPLORE:
+                self.intersection_explore(action_state)
 
 
             #######################################################

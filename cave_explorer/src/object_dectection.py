@@ -22,10 +22,10 @@ class ObjectDetector:
         # Publisher for republishing the same image
         self.image_pub = rospy.Publisher("/yolo/processed_image", Image, queue_size=10)
 
-    def image_callback(self, image_msg):
+    def yolo_callback(self, image_msg):
         try:
             # Convert the ROS Image message to an OpenCV image
-            cv_image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
+            cv_image = self.cv_bridge_.imgmsg_to_cv2(image_msg, "bgr8")
 
             # Optionally, run YOLO detection here (currently not processing)
             results = self.model(cv_image)
@@ -37,7 +37,7 @@ class ObjectDetector:
             annotated_image = results[0].plot()  # Use plot() to annotate image with bounding boxes
 
             # Convert the processed image back to ROS Image message
-            output_image_msg = self.bridge.cv2_to_imgmsg(annotated_image, "bgr8")
+            output_image_msg = self.cv_bridge_.cv2_to_imgmsg(annotated_image, "bgr8")
 
 
 

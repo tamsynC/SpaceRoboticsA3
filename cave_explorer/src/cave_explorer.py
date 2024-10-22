@@ -24,7 +24,7 @@ from enum import Enum
 from exploration_management import Node, NodeExplore
 from sensor_msgs.msg import LaserScan
 from ultralytics import YOLO
-
+from object_dectection import ObjectDetector
 
 
 def wrap_angle(angle):
@@ -78,11 +78,10 @@ class CaveExplorer:
         # Initialise NodeManagement
         self.nodes = NodeExplore()
         self.FirstScan = True
-        
-        # Initialise YOLO + Processing
-        self.model = YOLO('YOLO.pt')
-        self.yolo_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, self.yolo_callback)
 
+        #Initialise ObjectDetector
+        self.detector = ObjectDetector()
+        
         #Initialise Laserscan saving + subscriber
         self.laserSub = rospy.Subscriber('scan', LaserScan, self.LaserCallback, queue_size=10)
         self.laserData = LaserScan()
@@ -114,31 +113,7 @@ class CaveExplorer:
         # Subscribe to the camera topic
         self.image_sub_ = rospy.Subscriber("/camera/rgb/image_raw", Image, self.image_callback, queue_size=1)
 
-    def yolo_callback(self, image_msg):
-        try:
-            # Convert the ROS Image message to an OpenCV image
-            cv_image = self.cv_bridge_.imgmsg_to_cv2(image_msg, "bgr8")
-
-            # Optionally, run YOLO detection here (currently not processing)
-            results = self.model(cv_image)
-            # annotated_image = results.render()  # Optionally annotate the image with detection boxes
-
-            # # Convert the image (original or processed) back to ROS Image message
-            # output_image_msg = self.bridge.cv2_to_imgmsg(cv_image, "bgr8")
-
-            annotated_image = results[0].plot()  # Use plot() to annotate image with bounding boxes
-
-            # Convert the processed image back to ROS Image message
-            output_image_msg = self.cv_bridge_.cv2_to_imgmsg(annotated_image, "bgr8")
-
-
-
-            # Publish the image to the new topic
-            self.image_pub.publish(output_image_msg)
-
-        except CvBridgeError as e:
-            rospy.logerr(f"CvBridgeError: {e}")
-
+    
     def get_pose_2d(self):
 
         # Lookup the latest transform
@@ -174,7 +149,8 @@ class CaveExplorer:
 
         # Copy the image message to a cv image
         # see http://wiki.ros.org/cv_bridge/Tutorials/ConvertingBetweenROSImagesAndOpenCVImagesPython
-        image = self.cv_bridge_.imgmsg_to_cv2(image_msg, desired_encoding='passthrough')
+        yolo = self.detector.process_image(image_msg)
+        image = self.cv_bridge_.imgmsg_to_cv2(yolo, desired_encoding='passthrough')
 
         # Create a grayscale version, since the simple model below uses this
         image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -199,15 +175,22 @@ class CaveExplorer:
             self.artifact_found_ = False
 
         # Draw a bounding box rectangle on the image for each detection
+
+        image_copy = image.copy()
+
         for(x, y, width, height) in detections:
-            cv2.rectangle(image, (x, y), (x + height, y + width), (0, 255, 0), 5)
+            cv2.rectangle(image_copy, (x, y), (x + height, y + width), (0, 255, 0), 5)
 
         # Publish the image with the detection bounding boxes
-        image_detection_message = self.cv_bridge_.cv2_to_imgmsg(image, encoding="rgb8")
-        self.image_detections_pub_.publish(image_detection_message)
+        image_detection_message = self.cv_bridge_.cv2_to_imgmsg(image_copy, encoding="rgb8")
 
+        self.image_detections_pub_.publish(image_detection_message)
+        
         rospy.loginfo('image_callback')
         rospy.loginfo('artifact_found_: ' + str(self.artifact_found_))
+
+        # self.detector.process_image(image_msg)
+
 
 
     def planner_move_forwards(self, action_state):
@@ -449,7 +432,3 @@ if __name__ == '__main__':
 
     # Loop forever while processing callbacks
     cave_explorer.main_loop()
-
-
-
-

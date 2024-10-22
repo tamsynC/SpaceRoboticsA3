@@ -189,8 +189,6 @@ class CaveExplorer:
         rospy.loginfo('image_callback')
         rospy.loginfo('artifact_found_: ' + str(self.artifact_found_))
 
-        # self.detector.process_image(image_msg)
-
 
 
     def planner_move_forwards(self, action_state):

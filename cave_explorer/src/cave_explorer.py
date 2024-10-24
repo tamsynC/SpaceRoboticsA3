@@ -182,7 +182,7 @@ class CaveExplorer:
             cv2.rectangle(image_copy, (x, y), (x + height, y + width), (0, 255, 0), 5)
 
         # Publish the image with the detection bounding boxes
-        image_detection_message = self.cv_bridge_.cv2_to_imgmsg(image_copy, encoding="rgb8")
+        image_detection_message = self.cv_bridge_.cv2_to_imgmsg(image_copy, encoding="bgr8")
 
         self.image_detections_pub_.publish(image_detection_message)
         

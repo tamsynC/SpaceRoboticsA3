@@ -165,8 +165,8 @@ class CaveExplorer:
         # Detect artifacts in the image
         # The minSize is used to avoid very small detections that are probably noise
         detections = stop_sign_model.detectMultiScale(image, minSize=(20,20))
-        print("Yolo detections:", yolodetections)
-        print("Normal detections:", detections)
+        #print("Yolo detections:", yolodetections)
+        #print("Normal detections:", detections)
         # You can set "artifact_found_" to true to signal to "main_loop" that you have found a artifact
         # You may want to communicate more information
         # Since the "image_callback" and "main_loop" methods can run at the same time you should protect any shared variables

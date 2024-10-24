@@ -57,6 +57,7 @@ class PlannerType(Enum):
     RANDOM_WALK = 4
     RANDOM_GOAL = 5
     INTERSECTION_EXPLORE = 6
+    GO_TO_ARTIFACT = 7
     # Add more!
 
 class CaveExplorer:
@@ -78,6 +79,9 @@ class CaveExplorer:
         # Initialise NodeManagement
         self.nodes = NodeExplore()
         self.FirstScan = True
+        self.currGoal = MoveBaseActionGoal()
+        self.goingToArtifact = False
+        self.artifactNodes = []
 
         #Initialise ObjectDetector
         self.detector = ObjectDetector()
@@ -149,9 +153,9 @@ class CaveExplorer:
 
         # Copy the image message to a cv image
         # see http://wiki.ros.org/cv_bridge/Tutorials/ConvertingBetweenROSImagesAndOpenCVImagesPython
-        yolo = self.detector.process_image(image_msg)
+        yolo, yolodetections = self.detector.process_image(image_msg)
         image = self.cv_bridge_.imgmsg_to_cv2(yolo, desired_encoding='passthrough')
-
+        
         # Create a grayscale version, since the simple model below uses this
         image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
@@ -161,7 +165,8 @@ class CaveExplorer:
         # Detect artifacts in the image
         # The minSize is used to avoid very small detections that are probably noise
         detections = stop_sign_model.detectMultiScale(image, minSize=(20,20))
-
+        print("Yolo detections:", yolodetections)
+        print("Normal detections:", detections)
         # You can set "artifact_found_" to true to signal to "main_loop" that you have found a artifact
         # You may want to communicate more information
         # Since the "image_callback" and "main_loop" methods can run at the same time you should protect any shared variables
@@ -182,7 +187,7 @@ class CaveExplorer:
             cv2.rectangle(image_copy, (x, y), (x + height, y + width), (0, 255, 0), 5)
 
         # Publish the image with the detection bounding boxes
-        image_detection_message = self.cv_bridge_.cv2_to_imgmsg(image_copy, encoding="rgb8")
+        image_detection_message = self.cv_bridge_.cv2_to_imgmsg(image_copy, encoding="bgr8")
 
         self.image_detections_pub_.publish(image_detection_message)
         
@@ -363,9 +368,63 @@ class CaveExplorer:
             goal.goal.target_pose.pose = pose2d_to_pose(nodePose)
             
             #send goal to robot
+            self.currGoal = goal
             self.move_base_action_client_.send_goal(goal.goal) 
         
-
+    def go_artifact(self, action_state):
+        if self.goingToArtifact == False:
+            #Store previous goal, change state, go forward? 
+            #Will going forward always work? Is there a way to know what direction we want?
+            
+            plannedGoalPos = Pose2D()
+            plannedGoal = MoveBaseActionGoal()
+            #use laser data to plot goal
+            
+            range = self.laserData.ranges[0]
+            
+            if range != math.inf:
+                range = range - 2
+                odom = self.get_pose_2d()
+                theta = self.laserData.angle_min + odom.theta
+                
+                plannedGoalPos.x = range * math.cos(theta) + odom.x
+                plannedGoalPos.y = range * math.sin(theta) + odom.y
+                plannedGoalPos.theta = theta
+            else:
+                #turn?
+                pass    
+            
+            plannedGoal.goal.target_pose.header.frame_id = "map"
+            plannedGoal.goal_id = self.goal_counter_
+            self.goal_counter_ = self.goal_counter_ + 1
+            plannedGoal.goal.target_pose.pose = pose2d_to_pose(plannedGoalPos)
+            
+            alreadyVisited = False
+            for node in self.artifactNodes:
+                dist = math.sqrt(pow(node.x - plannedGoalPos.x, 2) + pow(node.y - plannedGoalPos.y, 2))
+                if dist < 3:
+                    alreadyVisited = True
+            
+            #cancel current goal pathing if unvisited planned goal and 
+            if alreadyVisited == False:
+                
+                if action_state == actionlib.GoalStatus.ACTIVE:
+                    self.move_base_action_client_.cancel_goal()
+                
+                self.artifactNodes.append(plannedGoalPos)
+                self.move_base_action_client_.send_goal(plannedGoal.goal)
+                self.goingToArtifact = True
+                
+                
+            
+            #move towards object (forwards [how much?] [turning?])
+        else:
+            if action_state == actionlib.GoalStatus.SUCCEEDED:
+                #wait for 2 seconds
+                rospy.sleep(2) #scary code
+                self.goingToArtifact = False
+                self.move_base_action_client_.send_goal(self.currGoal.goal)
+                
 
     def main_loop(self):
 
@@ -392,7 +451,11 @@ class CaveExplorer:
             # Select the next planner to execute
             # Update this logic as you see fit!
             # self.planner_type_ = PlannerType.MOVE_FORWARDS
-            self.planner_type_ = PlannerType.INTERSECTION_EXPLORE
+            
+            if self.artifact_found_:
+                self.planner_type_ = PlannerType.GO_TO_ARTIFACT
+            else:
+                self.planner_type_ = PlannerType.INTERSECTION_EXPLORE
 
 
             #######################################################
@@ -412,6 +475,8 @@ class CaveExplorer:
                 self.planner_random_goal(action_state)
             elif self.planner_type_ == PlannerType.INTERSECTION_EXPLORE:
                 self.intersection_explore(action_state)
+            elif self.planner_type_ == PlannerType.GO_TO_ARTIFACT:
+                self.go_artifact(action_state)
 
 
             #######################################################

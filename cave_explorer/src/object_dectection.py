@@ -25,7 +25,7 @@ from ultralytics import YOLO  # Assuming you use YOLOv8 or later versions from u
 
 class ObjectDetector:
     def __init__(self):
-        self.model = YOLO('~/catkin_ws/src/SpaceRoboticsA3/cave_explorer/src/YOLOv2.pt')  # Load YOLOv8 model on GPU
+        self.model = YOLO('/home/cajwill/catkin_ws/src/SpaceRoboticsA3/cave_explorer/src/YOLOv2.pt')  # Load YOLOv8 model on GPU
         self.bridge = CvBridge()
         # self.image_detections_pub_ = rospy.Publisher('detections_image', Image, queue_size=10)  # Increase queue size
 
@@ -47,7 +47,7 @@ class ObjectDetector:
             # Publish the image to the new topic
             # self.image_detections_pub_.publish(output_image_msg)
 
-            return output_image_msg
+            return output_image_msg, results
 
         except CvBridgeError as e:
             rospy.logerr(f"CvBridgeError: {e}")

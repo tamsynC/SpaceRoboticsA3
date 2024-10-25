@@ -25,6 +25,7 @@ from exploration_management import Node, NodeExplore
 from sensor_msgs.msg import LaserScan
 from ultralytics import YOLO
 from object_dectection import ObjectDetector
+from itertools import permutations
 
 
 def wrap_angle(angle):
@@ -58,6 +59,7 @@ class PlannerType(Enum):
     RANDOM_GOAL = 5
     INTERSECTION_EXPLORE = 6
     GO_TO_ARTIFACT = 7
+    TSP = 8
     # Add more!
 
 class CaveExplorer:
@@ -91,6 +93,10 @@ class CaveExplorer:
         #Initialise Laserscan saving + subscriber
         self.laserSub = rospy.Subscriber('scan', LaserScan, self.LaserCallback, queue_size=10)
         self.laserData = LaserScan()
+
+        #Advanced 4
+        self.idealGoalOrder = self.TSP_Solver()
+        self.patrolCounter = 1
 
         # Wait for the transform to become available
         rospy.loginfo("Waiting for transform from map to base_link")
@@ -450,7 +456,82 @@ class CaveExplorer:
             elif action_state == actionlib.GoalStatus.ABORTED:
                 self.goingToArtifact = False
                 self.move_base_action_client_.send_goal(self.currGoal.goal)
-                
+
+
+    def TSP_Solver(self):
+        #go through all permutations, find the shortest loop, return it
+        pi = math.pi
+
+        Xs = [13.5, 14, 5, 17.5, 3.5, 18.5, 28, 40, 50, 34, 38, 52] 
+        Ys = [1, 10.5, 20.5, 39, 35, 25, 12, 6, 5, 27, 44.5, 38.5]
+        Ts = [0, -3*pi/4, -pi/4, 0, -pi/2, 0, pi/2, 0, -pi/2, -pi/2, 0, pi/2]
+        #points are in pose2D form, want 10-20
+        goalArray = []
+
+        #append a bunch of goal positions
+        for i in range(len(Xs)):
+            goalArray.append(Pose2D(Xs[i], Ys[i], Ts[i]))
+
+        shortestDistance = 999999999
+        shortestGoals = []
+        #generate a permutation, find the total distance, if shortest move on
+        
+
+
+        for permutation in permutations(range(len(goalArray))):
+            currOrder = []
+            currOrder.append(Pose2D(0, 0, 0)) #first point always fixed
+            for i in permutation:
+                currOrder.append(goalArray[i])
+            currOrder.append(Pose2D(0, 0, 0))
+            dist = self.TotalDistance(currOrder) #last point always fixed
+            if dist < shortestDistance:
+                shortestDistance = dist
+                shortestGoals = currOrder
+
+        return shortestGoals
+
+    def TotalDistance(self, goalArray):
+        #return the sum of distances
+
+        distSum = 0
+
+        prevGoal = goalArray[0]
+        for goal in goalArray[1:]:
+            dist = math.sqrt(pow(goal.x - prevGoal.x, 2) + pow(goal.y - prevGoal.y, 2))
+            distSum += dist
+            prevGoal = goal
+        
+        finalGoal = goalArray[0]
+        finalDist = math.sqrt(pow(goal.x - finalGoal.x, 2) + pow(goal.y - finalGoal.y, 2))
+
+        distSum += finalDist
+
+        return distSum
+
+    def Patrol(self, action_state):
+        #go to each goal in order then loop
+
+        #use self.idealGoals and self.patrolCounter
+        if action_state != actionlib.GoalStatus.ACTIVE:
+            
+            goalPos = self.idealGoalOrder[self.patrolCounter - 1]
+
+            self.patrolCounter += 1
+            if self.patrolCounter >= len(self.idealGoalOrder):
+                self.patrolCounter = 1
+
+            #make goal, push goal
+
+            Goal = MoveBaseActionGoal()
+            Goal.goal.target_pose.header.frame_id = "map"
+            Goal.goal_id = self.goal_counter_
+            self.goal_counter_ = self.goal_counter_ + 1
+            Goal.goal.target_pose.pose = pose2d_to_pose(goalPos)
+
+            self.move_base_action_client_.send_goal(Goal.goal) 
+
+        pass
 
     def main_loop(self):
 
@@ -478,10 +559,12 @@ class CaveExplorer:
             # Update this logic as you see fit!
             # self.planner_type_ = PlannerType.MOVE_FORWARDS
             
-            if len(self.artifactUnvisited) > 0 or self.goingToArtifact:
-                self.planner_type_ = PlannerType.GO_TO_ARTIFACT
-            else:
-                self.planner_type_ = PlannerType.INTERSECTION_EXPLORE
+            self.planner_type_ = PlannerType.TSP
+
+            #if len(self.artifactUnvisited) > 0 or self.goingToArtifact:
+            #    self.planner_type_ = PlannerType.GO_TO_ARTIFACT
+            #else:
+            #    self.planner_type_ = PlannerType.INTERSECTION_EXPLORE
 
 
             #######################################################
@@ -503,6 +586,8 @@ class CaveExplorer:
                 self.intersection_explore(action_state)
             elif self.planner_type_ == PlannerType.GO_TO_ARTIFACT:
                 self.go_artifact(action_state)
+            elif self.planner_type_ == PlannerType.TSP:
+                self.Patrol(action_state)
 
 
             #######################################################

@@ -199,7 +199,7 @@ class CaveExplorer:
 
 
     def generateGoals(self, detectionsArray):
-
+        odom = self.get_pose_2d()
         for detection in detectionsArray:
             classID = detection[2]
             depth = detection[0]
@@ -209,8 +209,8 @@ class CaveExplorer:
             #turn depth + angle into a point using odom
             plannedGoalPos = Pose2D()
             
-            depth = depth - 1
-            odom = self.get_pose_2d()
+            depth = depth - 2
+            
             theta = odom.theta + angle
             
             if theta < 0:
@@ -229,7 +229,7 @@ class CaveExplorer:
             classCount = 0
             for node in self.artifactNodes:
                 dist = math.sqrt(pow(node.x - plannedGoalPos.x, 2) + pow(node.y - plannedGoalPos.y, 2))
-                if dist < 3 and self.artifactClasses[classCount] == classID:
+                if dist < 10 and self.artifactClasses[classCount] == classID:
                     alreadyVisited = True
                 classCount += 1
             
@@ -419,12 +419,13 @@ class CaveExplorer:
         if self.goingToArtifact == False:
             #travel to the closest artifact
             self.goingToArtifact = True
-
-            closestDist = 999999999
-            closestPoint = Pose2D()
+            self.move_base_action_client_.cancel_goal()
+            
+            closestPoint = self.artifactUnvisited[0]
+            closestDist = math.sqrt(pow(closestPoint.x - odom.x, 2) + pow(closestPoint.y - odom.y, 2))
             odom = self.get_pose_2d()
 
-            for point in self.artifactUnvisited:
+            for point in self.artifactUnvisited[1:]:
                 dist = math.sqrt(pow(point.x - odom.x, 2) + pow(point.y - odom.y, 2))
                 if dist < closestDist:
                     closestDist = dist
@@ -442,8 +443,8 @@ class CaveExplorer:
 
         else:
             if action_state == actionlib.GoalStatus.SUCCEEDED:
-                #wait for 2 seconds
-                rospy.sleep(2) #scary code
+                #wait for 4 seconds
+                rospy.sleep(4) #scary code
                 self.goingToArtifact = False
                 self.move_base_action_client_.send_goal(self.currGoal.goal)
             elif action_state == actionlib.GoalStatus.ABORTED:

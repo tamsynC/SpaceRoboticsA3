@@ -205,13 +205,21 @@ class CaveExplorer:
             depth = detection[0]
             angle = detection[1]
 
+            print("Object ID: ", classID)
             #turn depth + angle into a point using odom
             plannedGoalPos = Pose2D()
             
-            depth = depth - 2
+            depth = depth - 1
             odom = self.get_pose_2d()
             theta = odom.theta + angle
             
+            if theta < 0:
+                theta = theta + 2 * math.pi
+            elif theta > 2 * math.pi:
+                theta = theta - 2 * math.pi
+
+            print("theta: ", theta)
+
             plannedGoalPos.x = depth * math.cos(theta) + odom.x
             plannedGoalPos.y = depth * math.sin(theta) + odom.y
             plannedGoalPos.theta = theta
@@ -227,7 +235,7 @@ class CaveExplorer:
             
             #cancel current goal pathing if unvisited planned goal and 
             if alreadyVisited == False:
-                
+                print("Made artifact at: ", plannedGoalPos.x, plannedGoalPos.y)
                 self.artifactNodes.append(plannedGoalPos)
                 self.artifactUnvisited.append(plannedGoalPos)
                 self.artifactClasses.append(classID)
@@ -436,6 +444,9 @@ class CaveExplorer:
             if action_state == actionlib.GoalStatus.SUCCEEDED:
                 #wait for 2 seconds
                 rospy.sleep(2) #scary code
+                self.goingToArtifact = False
+                self.move_base_action_client_.send_goal(self.currGoal.goal)
+            elif action_state == actionlib.GoalStatus.ABORTED:
                 self.goingToArtifact = False
                 self.move_base_action_client_.send_goal(self.currGoal.goal)
                 

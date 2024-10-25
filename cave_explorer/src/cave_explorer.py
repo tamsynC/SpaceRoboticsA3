@@ -82,6 +82,8 @@ class CaveExplorer:
         self.currGoal = MoveBaseActionGoal()
         self.goingToArtifact = False
         self.artifactNodes = []
+        self.artifactClasses = []
+        self.artifactUnvisited = []
 
         #Initialise ObjectDetector
         self.detector = ObjectDetector()
@@ -172,10 +174,11 @@ class CaveExplorer:
         # Since the "image_callback" and "main_loop" methods can run at the same time you should protect any shared variables
         # with a mutex
         # "artifact_found_" doesn't need a mutex because it's an atomic
-        num_detections = len(detections)
+        num_detections = len(yolodetections)
 
         if num_detections > 0:
             self.artifact_found_ = True
+            self.generateGoals(yolodetections)
         else:
             self.artifact_found_ = False
 
@@ -195,6 +198,39 @@ class CaveExplorer:
         rospy.loginfo('artifact_found_: ' + str(self.artifact_found_))
 
 
+    def generateGoals(self, detectionsArray):
+
+        for detection in detectionsArray:
+            classID = detection[2]
+            depth = detection[0]
+            angle = detection[1]
+
+            #turn depth + angle into a point using odom
+            plannedGoalPos = Pose2D()
+            
+            depth = depth - 2
+            odom = self.get_pose_2d()
+            theta = odom.theta + angle
+            
+            plannedGoalPos.x = depth * math.cos(theta) + odom.x
+            plannedGoalPos.y = depth * math.sin(theta) + odom.y
+            plannedGoalPos.theta = theta
+            
+            alreadyVisited = False
+
+            classCount = 0
+            for node in self.artifactNodes:
+                dist = math.sqrt(pow(node.x - plannedGoalPos.x, 2) + pow(node.y - plannedGoalPos.y, 2))
+                if dist < 3 and self.artifactClasses[classCount] == classID:
+                    alreadyVisited = True
+                classCount += 1
+            
+            #cancel current goal pathing if unvisited planned goal and 
+            if alreadyVisited == False:
+                
+                self.artifactNodes.append(plannedGoalPos)
+                self.artifactUnvisited.append(plannedGoalPos)
+                self.artifactClasses.append(classID)
 
     def planner_move_forwards(self, action_state):
         # Simply move forward by 10m
@@ -373,51 +409,29 @@ class CaveExplorer:
         
     def go_artifact(self, action_state):
         if self.goingToArtifact == False:
-            #Store previous goal, change state, go forward? 
-            #Will going forward always work? Is there a way to know what direction we want?
+            #travel to the closest artifact
+            self.goingToArtifact = True
+
+            closestDist = 999999999
+            closestPoint = Pose2D()
+            odom = self.get_pose_2d()
+
+            for point in self.artifactUnvisited:
+                dist = math.sqrt(pow(point.x - odom.x, 2) + pow(point.y - odom.y, 2))
+                if dist < closestDist:
+                    closestDist = dist
+                    closestPoint = point
             
-            plannedGoalPos = Pose2D()
-            plannedGoal = MoveBaseActionGoal()
-            #use laser data to plot goal
-            
-            range = self.laserData.ranges[0]
-            
-            if range != math.inf:
-                range = range - 2
-                odom = self.get_pose_2d()
-                theta = self.laserData.angle_min + odom.theta
-                
-                plannedGoalPos.x = range * math.cos(theta) + odom.x
-                plannedGoalPos.y = range * math.sin(theta) + odom.y
-                plannedGoalPos.theta = theta
-            else:
-                #turn?
-                pass    
-            
-            plannedGoal.goal.target_pose.header.frame_id = "map"
-            plannedGoal.goal_id = self.goal_counter_
+            self.artifactUnvisited.remove(closestPoint)
+
+            artifactGoal = MoveBaseActionGoal()
+            artifactGoal.goal.target_pose.header.frame_id = "map"
+            artifactGoal.goal_id = self.goal_counter_
             self.goal_counter_ = self.goal_counter_ + 1
-            plannedGoal.goal.target_pose.pose = pose2d_to_pose(plannedGoalPos)
-            
-            alreadyVisited = False
-            for node in self.artifactNodes:
-                dist = math.sqrt(pow(node.x - plannedGoalPos.x, 2) + pow(node.y - plannedGoalPos.y, 2))
-                if dist < 3:
-                    alreadyVisited = True
-            
-            #cancel current goal pathing if unvisited planned goal and 
-            if alreadyVisited == False:
-                
-                if action_state == actionlib.GoalStatus.ACTIVE:
-                    self.move_base_action_client_.cancel_goal()
-                
-                self.artifactNodes.append(plannedGoalPos)
-                self.move_base_action_client_.send_goal(plannedGoal.goal)
-                self.goingToArtifact = True
-                
-                
-            
-            #move towards object (forwards [how much?] [turning?])
+            artifactGoal.goal.target_pose.pose = pose2d_to_pose(closestPoint)
+
+            self.move_base_action_client_.send_goal(artifactGoal.goal) 
+
         else:
             if action_state == actionlib.GoalStatus.SUCCEEDED:
                 #wait for 2 seconds
@@ -452,7 +466,7 @@ class CaveExplorer:
             # Update this logic as you see fit!
             # self.planner_type_ = PlannerType.MOVE_FORWARDS
             
-            if self.artifact_found_:
+            if len(self.artifactUnvisited) > 0 or self.goingToArtifact:
                 self.planner_type_ = PlannerType.GO_TO_ARTIFACT
             else:
                 self.planner_type_ = PlannerType.INTERSECTION_EXPLORE

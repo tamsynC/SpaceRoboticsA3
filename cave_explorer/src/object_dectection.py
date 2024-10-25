@@ -45,6 +45,8 @@ class ObjectDetector:
             # Run YOLO detection on the image
             results = self.model(cv_image)
 
+            objectDepthAngles = []
+
             # Get the bounding box results and draw them on the image
             for result in results:
                 # Loop through detections in each image
@@ -69,13 +71,18 @@ class ObjectDetector:
                     #avg depth
                     avg_depth = self.calculate_average_depth(x1, y1, x2, y2)
                     angle = self.calculate_angle(x1, y1, x2, y2)
+                    objtype = class_id
+
+                    objTuple = (avg_depth, angle, objtype)
+
+                    objectDepthAngles.append(objTuple)
 
                     rospy.loginfo(f"Object {label} is at an average depth of {avg_depth:.2f} meters and angle {angle:.2f} degrees.")
 
             # Convert the processed OpenCV image back to a ROS Image message
             output_image_msg = self.bridge.cv2_to_imgmsg(cv_image, "bgr8")
 
-            return output_image_msg, results
+            return output_image_msg, objectDepthAngles
 
         except CvBridgeError as e:
             rospy.logerr(f"CvBridgeError: {e}")

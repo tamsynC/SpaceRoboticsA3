@@ -462,9 +462,9 @@ class CaveExplorer:
         #go through all permutations, find the shortest loop, return it
         pi = math.pi
 
-        Xs = [13.5, 14, 5, 17.5, 3.5, 18.5, 28, 40, 50, 34, 38, 52] 
-        Ys = [1, 10.5, 20.5, 39, 35, 25, 12, 6, 5, 27, 44.5, 38.5]
-        Ts = [0, -3*pi/4, -pi/4, 0, -pi/2, 0, pi/2, 0, -pi/2, -pi/2, 0, pi/2]
+        Xs = [5, 17.5, 3.5, 18.5, 28, 40, 50, 34, 38, 52] #13.5, 14, 
+        Ys = [20.5, 39, 35, 25, 12, 6, 5, 27, 44.5, 38.5] #1, 10.5, 
+        Ts = [-pi/4, 0, -pi/2, 0, pi/2, 0, -pi/2, -pi/2, 0, pi/2] #0, -3*pi/4, 
         #points are in pose2D form, want 10-20
         goalArray = []
 
@@ -476,19 +476,22 @@ class CaveExplorer:
         shortestGoals = []
         #generate a permutation, find the total distance, if shortest move on
         
+        print("Added goals to TSP")
 
-
-        for permutation in permutations(range(len(goalArray))):
+        for permutation in permutations(goalArray):
             currOrder = []
             currOrder.append(Pose2D(0, 0, 0)) #first point always fixed
-            for i in permutation:
-                currOrder.append(goalArray[i])
+            for g in permutation:
+                currOrder.append(g)
             currOrder.append(Pose2D(0, 0, 0))
             dist = self.TotalDistance(currOrder) #last point always fixed
             if dist < shortestDistance:
                 shortestDistance = dist
                 shortestGoals = currOrder
-
+                print("Updated shortest dist: ", shortestDistance)
+                #print("Best order so far: ", shortestGoals)
+        print("Done finding goals")
+        print(shortestGoals)
         return shortestGoals
 
     def TotalDistance(self, goalArray):
@@ -503,7 +506,7 @@ class CaveExplorer:
             prevGoal = goal
         
         finalGoal = goalArray[0]
-        finalDist = math.sqrt(pow(goal.x - finalGoal.x, 2) + pow(goal.y - finalGoal.y, 2))
+        finalDist = math.sqrt(pow(prevGoal.x - finalGoal.x, 2) + pow(prevGoal.y - finalGoal.y, 2))
 
         distSum += finalDist
 

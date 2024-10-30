@@ -67,15 +67,15 @@ class ObjectDetector:
 
                     cv2.rectangle(cv_image, (x1, y1), (x2, y2), (160, 32, 240), 2)
 
-                    # Draw the label and confidence score on the image
-                    if conf > 0.5:
-                        text = f"{label}: {conf:.2f}"
-                        cv2.putText(cv_image, text, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (160, 32, 240), 2)
-
                     #avg depth
                     avg_depth = self.calculate_average_depth(x1, y1, x2, y2)
                     angle = self.calculate_angle(x1, y1, x2, y2)
                     objtype = class_id
+
+                    # Draw the label and confidence score on the image
+                    if conf > 0.5:
+                        text = f"{label}: {angle:.2f}"
+                        cv2.putText(cv_image, text, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (160, 32, 240), 2)             
 
                     objTuple = (avg_depth, angle, objtype)
 

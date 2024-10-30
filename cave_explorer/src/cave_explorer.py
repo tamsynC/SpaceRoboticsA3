@@ -27,6 +27,8 @@ from ultralytics import YOLO
 from object_dectection import ObjectDetector
 from itertools import permutations
 
+from visualization_msgs.msg import Marker, MarkerArray
+
 
 def wrap_angle(angle):
     # Function to wrap an angle between 0 and 2*Pi
@@ -126,6 +128,8 @@ class CaveExplorer:
 
         # Subscribe to the camera topic
         self.image_sub_ = rospy.Subscriber("/camera/rgb/image_raw", Image, self.image_callback, queue_size=1)
+
+        self.marker_pub = rospy.Publisher('/artifact_localisation_marker', Marker, queue_size=1)
 
     
     def get_pose_2d(self):
@@ -475,7 +479,6 @@ class CaveExplorer:
 
             odom = self.get_pose_2d()
             
-            odom = self.get_pose_2d()
             closestPoint = self.artifactUnvisited[0]
             closestDist = math.sqrt(pow(closestPoint.x - odom.x, 2) + pow(closestPoint.y - odom.y, 2))
             
@@ -506,6 +509,28 @@ class CaveExplorer:
                 self.goingToArtifact = False
                 self.move_base_action_client_.send_goal(self.currGoal.goal)
 
+        marker = visualization_msgs.msg.Marker()
+        marker.header.frame_id = "/map"
+        marker.header.stamp = rospy.Time.now()
+        marker.ns = "artifact_markers"
+        marker.id = len(self.artifactMarkers)  # increment the marker ID
+        marker.type = visualization_msgs.msg.Marker.CUBE
+        marker.action = visualization_msgs.msg.Marker.ADD
+        marker.pose.position.x = odom.x
+        marker.pose.position.y = odom.y
+        marker.pose.position.z = 0.0
+        marker.pose.orientation.w = 1.0
+        marker.scale.x = 0.5
+        marker.scale.y = 0.5
+        marker.scale.z = 0.5
+        marker.color.a = 1.0
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+    
+        # Publish the marker
+        self.marker_pub.publish(marker)
+    
 
     def TSP_Solver(self):
         #go through all permutations, find the shortest loop, return it

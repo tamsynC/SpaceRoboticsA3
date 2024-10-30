@@ -86,6 +86,8 @@ class CaveExplorer:
         self.artifactNodes = []
         self.artifactClasses = []
         self.artifactUnvisited = []
+        self.artifactMaybe = []
+        self.artifactMaybeCounts = []
 
         #Initialise ObjectDetector
         self.detector = ObjectDetector()
@@ -209,43 +211,63 @@ class CaveExplorer:
         odom = self.get_pose_2d()
         for detection in detectionsArray:
             classID = detection[2]
-            depth = detection[0]
-            angle = detection[1]
+            depth = detection[0] #in metres
+            angle = detection[1] #in degrees
+            angle = -1 * angle * math.pi / 180 #convert to radians and flip direction reading
 
             print("Object ID: ", classID)
             #turn depth + angle into a point using odom
-            plannedGoalPos = Pose2D()
-            
-            depth = depth - 2
-            
-            theta = odom.theta + angle
-            
-            if theta < 0:
-                theta = theta + 2 * math.pi
-            elif theta > 2 * math.pi:
-                theta = theta - 2 * math.pi
 
-            print("theta: ", theta)
+            if math.isnan(depth) == False:
 
-            plannedGoalPos.x = depth * math.cos(theta) + odom.x
-            plannedGoalPos.y = depth * math.sin(theta) + odom.y
-            plannedGoalPos.theta = theta
-            
-            alreadyVisited = False
+                plannedGoalPos = Pose2D()
 
-            classCount = 0
-            for node in self.artifactNodes:
-                dist = math.sqrt(pow(node.x - plannedGoalPos.x, 2) + pow(node.y - plannedGoalPos.y, 2))
-                if dist < 10 and self.artifactClasses[classCount] == classID:
-                    alreadyVisited = True
-                classCount += 1
-            
-            #cancel current goal pathing if unvisited planned goal and 
-            if alreadyVisited == False:
-                print("Made artifact at: ", plannedGoalPos.x, plannedGoalPos.y)
-                self.artifactNodes.append(plannedGoalPos)
-                self.artifactUnvisited.append(plannedGoalPos)
-                self.artifactClasses.append(classID)
+                depth = depth - 2
+
+                theta = odom.theta + angle
+
+                if theta < 0:
+                    theta = theta + 2 * math.pi
+                elif theta > 2 * math.pi:
+                    theta = theta - 2 * math.pi
+
+                #print("theta: ", theta, "yaw: ", odom.theta, "camAngle: ", angle, "depth: ", depth) debbugging
+
+                plannedGoalPos.x = depth * math.cos(theta) + odom.x
+                plannedGoalPos.y = depth * math.sin(theta) + odom.y
+                plannedGoalPos.theta = theta
+
+                alreadyVisited = False
+
+                classCount = 0
+                for node in self.artifactNodes:
+                    dist = math.sqrt(pow(node.x - plannedGoalPos.x, 2) + pow(node.y - plannedGoalPos.y, 2))
+                    if dist < 10 and self.artifactClasses[classCount] == classID:
+                        alreadyVisited = True
+                    classCount += 1
+
+                #cancel current goal pathing if unvisited planned goal and 
+                if alreadyVisited == False:
+
+                    alreadyExists = False
+                    existsID = 0
+                    for i in range(len(self.artifactMaybe)):
+                        dist = math.sqrt(pow(self.artifactMaybe[i].x - plannedGoalPos.x, 2) + pow(self.artifactMaybe[i].y - plannedGoalPos.y, 2))
+                        if dist < 1.5:
+                            alreadyExists = True
+                            existsID = i
+
+                    if alreadyExists:
+                        self.artifactMaybeCounts[existsID] += 1
+                        if self.artifactMaybeCounts[existsID] >= 10:
+                            print("Made artifact at: ", plannedGoalPos.x, plannedGoalPos.y)
+                            self.artifactNodes.append(plannedGoalPos)
+                            self.artifactUnvisited.append(plannedGoalPos)
+                            self.artifactClasses.append(classID)
+
+                    else:
+                        self.artifactMaybe.append(plannedGoalPos)
+                        self.artifactMaybeCounts.append(1)
 
     def planner_move_forwards(self, action_state):
         # Simply move forward by 10m
@@ -431,6 +453,7 @@ class CaveExplorer:
 
             odom = self.get_pose_2d()
             
+            odom = self.get_pose_2d()
             closestPoint = self.artifactUnvisited[0]
             closestDist = math.sqrt(pow(closestPoint.x - odom.x, 2) + pow(closestPoint.y - odom.y, 2))
             
@@ -454,7 +477,7 @@ class CaveExplorer:
         else:
             if action_state == actionlib.GoalStatus.SUCCEEDED:
                 #wait for 4 seconds
-                rospy.sleep(4) #scary code
+                rospy.sleep(2) #scary code
                 self.goingToArtifact = False
                 self.move_base_action_client_.send_goal(self.currGoal.goal)
             elif action_state == actionlib.GoalStatus.ABORTED:
@@ -466,8 +489,8 @@ class CaveExplorer:
         #go through all permutations, find the shortest loop, return it
         pi = math.pi
 
-        Xs = [5, 17.5, 3.5, 18.5, 28, 40, 50, 34, 38, 52] #13.5, 14, 
-        Ys = [20.5, 39, 35, 25, 12, 6, 5, 27, 44.5, 38.5] #1, 10.5, 
+        Xs = [5, 17.5, 3.5, 18.5, 28, 38, 49, 34, 38, 52] #13.5, 14, 
+        Ys = [20.5, 39, 35, 25, 12, 6, 4.5, 27, 44.5, 38.5] #1, 10.5, 
         Ts = [-pi/4, 0, -pi/2, 0, pi/2, 0, -pi/2, -pi/2, 0, pi/2] #0, -3*pi/4, 
         #points are in pose2D form, want 10-20
         goalArray = []
@@ -566,12 +589,12 @@ class CaveExplorer:
             # Update this logic as you see fit!
             # self.planner_type_ = PlannerType.MOVE_FORWARDS
             
-            self.planner_type_ = PlannerType.TSP
+            #self.planner_type_ = PlannerType.TSP
 
-            #if len(self.artifactUnvisited) > 0 or self.goingToArtifact:
-            #    self.planner_type_ = PlannerType.GO_TO_ARTIFACT
-            #else:
-            #    self.planner_type_ = PlannerType.INTERSECTION_EXPLORE
+            if len(self.artifactUnvisited) > 0 or self.goingToArtifact:
+                self.planner_type_ = PlannerType.GO_TO_ARTIFACT
+            else:
+                self.planner_type_ = PlannerType.INTERSECTION_EXPLORE
 
 
             #######################################################

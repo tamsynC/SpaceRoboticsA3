@@ -25,12 +25,14 @@ from enum import Enum
 from sensor_msgs.msg import LaserScan
 from ultralytics import YOLO  # Assuming you use YOLOv8 or later versions from ultralytics
 import os
+import os
 
 #Depth image
 from sensor_msgs.msg import Image
 
 class ObjectDetector:
     def __init__(self):
+        self.model = YOLO(os.path.join(os.path.dirname(__file__), 'YOLOv2.pt'))  # Load YOLOv8 model on GPU
         # self.model = YOLO('YOLOv2.pt')  # Load YOLOv8 model on GPU
         
         self.model = YOLO(os.path.join(os.path.dirname(__file__), 'YOLOv2.pt'))

@@ -22,13 +22,14 @@ from threading import Lock
 from enum import Enum
 from sensor_msgs.msg import LaserScan
 from ultralytics import YOLO  # Assuming you use YOLOv8 or later versions from ultralytics
+import os
 
 #Depth image
 from sensor_msgs.msg import Image
 
 class ObjectDetector:
     def __init__(self):
-        self.model = YOLO('/home/cajwill/catkin_ws/src/SpaceRoboticsA3/cave_explorer/src/YOLOv2.pt')  # Load YOLOv8 model on GPU
+        self.model = YOLO(os.path.join(os.path.dirname(__file__), 'YOLOv2.pt'))  # Load YOLOv8 model on GPU
         self.bridge = CvBridge()
 
         self.depth_sub = rospy.Subscriber('/camera/depth/image_raw', Image, self.depth_callback, queue_size=10)

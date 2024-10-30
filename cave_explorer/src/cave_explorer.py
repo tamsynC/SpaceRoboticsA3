@@ -28,6 +28,7 @@ from object_dectection import ObjectDetector
 from itertools import permutations
 
 from visualization_msgs.msg import Marker, MarkerArray
+import visualization_msgs
 
 
 def wrap_angle(angle):
@@ -90,6 +91,8 @@ class CaveExplorer:
         self.artifactUnvisited = []
         self.artifactMaybe = []
         self.artifactMaybeCounts = []
+
+        self.MarkerCount = 0
 
         #Initialise ObjectDetector
         self.detector = ObjectDetector()
@@ -497,7 +500,33 @@ class CaveExplorer:
             self.goal_counter_ = self.goal_counter_ + 1
             artifactGoal.goal.target_pose.pose = pose2d_to_pose(closestPoint)
 
-            self.move_base_action_client_.send_goal(artifactGoal.goal) 
+            marker = Marker()
+            marker.header.frame_id = "map"
+            marker.header.stamp = rospy.Time.now()
+            marker.ns = "artifact_markers"
+            marker.id = self.MarkerCount # increment the marker ID
+            marker.type = 3
+            marker.action = 0 #change to 0
+            marker.pose.position.x = closestPoint.x
+            marker.pose.position.y = closestPoint.y
+            marker.pose.position.z = 0.0
+            marker.pose.orientation.w = 1.0
+            marker.scale.x = 0.5
+            marker.scale.y = 0.5
+            marker.scale.z = 0.5
+            marker.color.a = 1.0
+            marker.color.r = 1.0
+            marker.color.g = 0.0
+            marker.color.b = 0.0
+    
+            # Publish the marker
+            print("Made a marker")
+            self.marker_pub.publish(marker)
+
+            self.MarkerCount += 1
+
+
+            self.move_base_action_client_.send_goal(artifactGoal.goal)
 
         else:
             if action_state == actionlib.GoalStatus.SUCCEEDED:
@@ -509,27 +538,7 @@ class CaveExplorer:
                 self.goingToArtifact = False
                 self.move_base_action_client_.send_goal(self.currGoal.goal)
 
-        marker = visualization_msgs.msg.Marker()
-        marker.header.frame_id = "/map"
-        marker.header.stamp = rospy.Time.now()
-        marker.ns = "artifact_markers"
-        marker.id = len(self.artifactMarkers)  # increment the marker ID
-        marker.type = visualization_msgs.msg.Marker.CUBE
-        marker.action = visualization_msgs.msg.Marker.ADD
-        marker.pose.position.x = odom.x
-        marker.pose.position.y = odom.y
-        marker.pose.position.z = 0.0
-        marker.pose.orientation.w = 1.0
-        marker.scale.x = 0.5
-        marker.scale.y = 0.5
-        marker.scale.z = 0.5
-        marker.color.a = 1.0
-        marker.color.r = 1.0
-        marker.color.g = 0.0
-        marker.color.b = 0.0
-    
-        # Publish the marker
-        self.marker_pub.publish(marker)
+        
     
 
     def TSP_Solver(self):

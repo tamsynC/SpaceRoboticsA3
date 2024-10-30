@@ -218,10 +218,10 @@ class CaveExplorer:
             #turn depth + angle into a point using odom
 
             if math.isnan(depth) == False:
-
+                print("Depth not nan, reading: ", depth)
                 plannedGoalPos = Pose2D()
-
-                depth = depth - 2
+                if depth > 2:
+                    depth = depth - 2
 
                 theta = odom.theta + angle
 

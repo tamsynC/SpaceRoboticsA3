@@ -20,15 +20,20 @@ import random
 import copy
 from threading import Lock
 from enum import Enum
+
+
 from sensor_msgs.msg import LaserScan
 from ultralytics import YOLO  # Assuming you use YOLOv8 or later versions from ultralytics
+import os
 
 #Depth image
 from sensor_msgs.msg import Image
 
 class ObjectDetector:
     def __init__(self):
-        self.model = YOLO('/home/cajwill/catkin_ws/src/SpaceRoboticsA3/cave_explorer/src/YOLOv2.pt')  # Load YOLOv8 model on GPU
+        # self.model = YOLO('YOLOv2.pt')  # Load YOLOv8 model on GPU
+        
+        self.model = YOLO(os.path.join(os.path.dirname(__file__), 'YOLOv2.pt'))
         self.bridge = CvBridge()
 
         self.depth_sub = rospy.Subscriber('/camera/depth/image_raw', Image, self.depth_callback, queue_size=10)
@@ -116,23 +121,56 @@ class ObjectDetector:
         return thing
 
 
-    def calculate_average_depth(self, x1, y1, x2, y2):
-        if self.depth_image is None:
-            return float('nan') #no image avaliable
+    # def calculate_average_depth(self, x1, y1, x2, y2):
+    #     if self.depth_image is None:
+    #         return float('nan') #no image avaliable
         
-        depth_roi = self.depth_image[y1:y2, x1:x2]
+    #     depth_roi = self.depth_image[y1:y2, x1:x2]
 
+    #     valid_depths = depth_roi[depth_roi > 0]
+
+    #     if len(valid_depths) > 0:
+    #         avg_depth = np.mean(valid_depths)
+
+    #     else:
+    #         avg_depth = float('nan')
+            
+
+    #     print("avg_depth: ", avg_depth)
+
+    #     return avg_depth
+
+    import numpy as np
+
+    def calculate_average_depth(self, x1, y1, x2, y2, box_size=5):
+        if self.depth_image is None:
+            return float('nan')  # No depth image available
+        
+        # Calculate the midpoint of the bounding box
+        mid_x = (x1 + x2) // 2
+        mid_y = (y1 + y2) // 2
+    
+        # Define a small region around the midpoint
+        x_start = max(mid_x - box_size, 0)
+        x_end = min(mid_x + box_size, self.depth_image.shape[1])
+        y_start = max(mid_y - box_size, 0)
+        y_end = min(mid_y + box_size, self.depth_image.shape[0])
+    
+        # Extract the depth values in this small region
+        depth_roi = self.depth_image[y_start:y_end, x_start:x_end]
+    
+        # Filter out invalid depth values (e.g., zero or near-zero values)
         valid_depths = depth_roi[depth_roi > 0]
-
+    
+        # Calculate the average depth if there are valid depth values
         if len(valid_depths) > 0:
             avg_depth = np.mean(valid_depths)
-
         else:
             avg_depth = float('nan')
-
-        print("avg_depth: ", avg_depth)
-
+    
+        print("Average depth at midpoint:", avg_depth)
         return avg_depth
+
 
     def calculate_angle(self, x1, y1, x2, y2):
         mid_point = (x1 + x2) / 2

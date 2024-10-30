@@ -204,6 +204,7 @@ class CaveExplorer:
         rospy.loginfo('artifact_found_: ' + str(self.artifact_found_))
 
 
+    #connor add
     def generateGoals(self, detectionsArray):
         odom = self.get_pose_2d()
         for detection in detectionsArray:
@@ -271,6 +272,7 @@ class CaveExplorer:
 
             rospy.loginfo('Sending goal...')
             self.move_base_action_client_.send_goal(action_goal.goal)
+
 
 
     def planner_go_to_first_artifact(self, action_state):
@@ -426,10 +428,12 @@ class CaveExplorer:
             #travel to the closest artifact
             self.goingToArtifact = True
             self.move_base_action_client_.cancel_goal()
+
+            odom = self.get_pose_2d()
             
             closestPoint = self.artifactUnvisited[0]
             closestDist = math.sqrt(pow(closestPoint.x - odom.x, 2) + pow(closestPoint.y - odom.y, 2))
-            odom = self.get_pose_2d()
+            
 
             for point in self.artifactUnvisited[1:]:
                 dist = math.sqrt(pow(point.x - odom.x, 2) + pow(point.y - odom.y, 2))

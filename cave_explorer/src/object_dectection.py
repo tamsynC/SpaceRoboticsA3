@@ -25,10 +25,7 @@ from enum import Enum
 from sensor_msgs.msg import LaserScan
 from ultralytics import YOLO  # Assuming you use YOLOv8 or later versions from ultralytics
 import os
-import os
-
-#Depth image
-from sensor_msgs.msg import Image
+import numpy as np
 
 class ObjectDetector:
     def __init__(self):
@@ -121,28 +118,6 @@ class ObjectDetector:
                 thing.append(label)
 
         return thing
-
-
-    # def calculate_average_depth(self, x1, y1, x2, y2):
-    #     if self.depth_image is None:
-    #         return float('nan') #no image avaliable
-        
-    #     depth_roi = self.depth_image[y1:y2, x1:x2]
-
-    #     valid_depths = depth_roi[depth_roi > 0]
-
-    #     if len(valid_depths) > 0:
-    #         avg_depth = np.mean(valid_depths)
-
-    #     else:
-    #         avg_depth = float('nan')
-            
-
-    #     print("avg_depth: ", avg_depth)
-
-    #     return avg_depth
-
-    import numpy as np
 
     def calculate_average_depth(self, x1, y1, x2, y2, box_size=5):
         if self.depth_image is None:

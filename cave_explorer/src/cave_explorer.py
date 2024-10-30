@@ -209,6 +209,9 @@ class CaveExplorer:
     #connor add
     def generateGoals(self, detectionsArray):
         odom = self.get_pose_2d()
+
+        laser = self.laserData
+
         for detection in detectionsArray:
             classID = detection[2]
             depth = detection[0] #in metres
@@ -218,18 +221,37 @@ class CaveExplorer:
             print("Object ID: ", classID)
             #turn depth + angle into a point using odom
 
-            if math.isnan(depth) == False:
-                print("Depth not nan, reading: ", depth)
+            theta = odom.theta + angle
+            if theta < 0:
+                theta = theta + 2 * math.pi
+            elif theta > 2 * math.pi:
+                theta = theta - 2 * math.pi
+            
+            badReading = False
+
+            if depth < 0.5 or depth > 7:
+                badReading = True
+
+            # see if the angle reading at theta matches :D
+            i = 0
+            for scan in laser.ranges:
+                laserAngle = laser.angle_min + (i * laser.angle_increment)
+                i += 1
+
+                if abs(laserAngle - theta) < laser.angle_increment:
+                    #less than increment gives an approximate closest answer(s)
+                    if abs(scan - depth) > 2:
+                        #if the laserscan range and perceived depth are too far apart, the reading is bad. 
+                        badReading = True
+                        
+
+            if math.isnan(depth) == False and badReading == False:
+
                 plannedGoalPos = Pose2D()
-                if depth > 2:
-                    depth = depth - 2
+                if depth > 1:
+                    depth = depth - 1
 
-                theta = odom.theta + angle
-
-                if theta < 0:
-                    theta = theta + 2 * math.pi
-                elif theta > 2 * math.pi:
-                    theta = theta - 2 * math.pi
+                
 
                 #print("theta: ", theta, "yaw: ", odom.theta, "camAngle: ", angle, "depth: ", depth) debbugging
 

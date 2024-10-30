@@ -10,4 +10,4 @@ class ArtifactLocalisationAndDisplay:
         self.local_pub = rospy.Publisher('/artifact_localisation_marker', Marker, queue_size=10)
 
     def artifact_localisation(self):
-        
+        pass

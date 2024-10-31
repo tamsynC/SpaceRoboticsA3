@@ -288,7 +288,7 @@ class CaveExplorer:
 
                     if alreadyExists:
                         self.artifactMaybeCounts[existsID] += 1
-                        if self.artifactMaybeCounts[existsID] >= 10:
+                        if self.artifactMaybeCounts[existsID] >= 2:
                             print("Made artifact at: ", plannedGoalPos.x, plannedGoalPos.y)
                             self.artifactNodes.append(plannedGoalPos)
                             self.artifactUnvisited.append(plannedGoalPos)
@@ -645,6 +645,7 @@ class CaveExplorer:
             # Update this logic as you see fit!
             # self.planner_type_ = PlannerType.MOVE_FORWARDS
             
+            #Uncomment for Advanced 4 and comment existing lines
             #self.planner_type_ = PlannerType.TSP
 
             if len(self.artifactUnvisited) > 0 or self.goingToArtifact:
